@@ -4,15 +4,107 @@ import pako from 'pako';
 import { getSettings, saveSettings, exportAllData, importAllData, resetAllData } from '../data/store';
 import { FormField, inputStyle, btnPrimary, btnDanger, btnSecondary } from '../components/FormControls';
 
+const VAPID_PUBLIC_KEY = 'BMfdU455MTFxF1XoxtRBGSDM_7tVWNfgG4ye90vtuCilHMxpQGwjtfRR1ECqIeFzWpmjI0FoK2Xmfg_y168LmVY';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
 export default function Parametres() {
   const [settings, setSettingsState] = useState(getSettings());
   const [importMsg, setImportMsg] = useState('');
+  const [notifStatus, setNotifStatus] = useState('loading');
+  const [notifMsg, setNotifMsg] = useState('');
   const [showQr, setShowQr] = useState(false);
   const [syncCode, setSyncCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [pasteCode, setPasteCode] = useState('');
   const [pasteMsg, setPasteMsg] = useState('');
   const canvasRef = useRef(null);
+
+  // Check notification status on load
+  useEffect(() => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      setNotifStatus('unsupported');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.pushManager.getSubscription().then((sub) => {
+          setNotifStatus(sub ? 'subscribed' : 'unsubscribed');
+        });
+      });
+    } else if (Notification.permission === 'denied') {
+      setNotifStatus('denied');
+    } else {
+      setNotifStatus('unsubscribed');
+    }
+  }, []);
+
+  const subscribePush = async () => {
+    try {
+      setNotifMsg('');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setNotifStatus('denied');
+        setNotifMsg('Permission refusée. Active les notifications dans les paramètres de ton navigateur.');
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+
+      // Send subscription to server
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription),
+      });
+
+      if (res.ok) {
+        setNotifStatus('subscribed');
+        setNotifMsg('Notifications activées !');
+
+        // Test notification
+        reg.showNotification('MyQawam', {
+          body: 'Les notifications sont activées !',
+          icon: '/logo.png',
+        });
+      } else {
+        setNotifMsg('Erreur serveur. Réessaie plus tard.');
+      }
+    } catch (err) {
+      console.error('Push subscribe error:', err);
+      setNotifMsg('Erreur : ' + err.message);
+    }
+  };
+
+  const unsubscribePush = async () => {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.getSubscription();
+      if (subscription) {
+        await fetch('/api/subscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subscription),
+        });
+        await subscription.unsubscribe();
+      }
+      setNotifStatus('unsubscribed');
+      setNotifMsg('Notifications désactivées.');
+    } catch (err) {
+      setNotifMsg('Erreur : ' + err.message);
+    }
+  };
 
   const handleNameChange = (e) => {
     const newSettings = { ...settings, appName: e.target.value };
@@ -123,6 +215,47 @@ export default function Parametres() {
         <FormField label="Nom de l'application">
           <input style={{ ...inputStyle, maxWidth: '300px' }} value={settings.appName} onChange={handleNameChange} />
         </FormField>
+      </div>
+
+      {/* Notifications */}
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>🔔 Notifications</h3>
+        {notifStatus === 'unsupported' && (
+          <p style={styles.sectionDesc}>Ton navigateur ne supporte pas les notifications push.</p>
+        )}
+        {notifStatus === 'denied' && (
+          <p style={styles.sectionDesc}>
+            Les notifications sont bloquées. Va dans les paramètres de ton navigateur pour les réactiver.
+          </p>
+        )}
+        {notifStatus === 'loading' && (
+          <p style={styles.sectionDesc}>Chargement...</p>
+        )}
+        {notifStatus === 'unsubscribed' && (
+          <>
+            <p style={styles.sectionDesc}>
+              Active les notifications pour recevoir un rappel quotidien de tes objectifs (prières, sport, habitudes...).
+            </p>
+            <button style={btnPrimary} onClick={subscribePush}>
+              Activer les notifications
+            </button>
+          </>
+        )}
+        {notifStatus === 'subscribed' && (
+          <>
+            <p style={{ ...styles.sectionDesc, color: 'var(--success)' }}>
+              ✓ Notifications activées — tu recevras un rappel chaque matin à 8h.
+            </p>
+            <button style={btnSecondary} onClick={unsubscribePush}>
+              Désactiver les notifications
+            </button>
+          </>
+        )}
+        {notifMsg && (
+          <p style={{ marginTop: '12px', fontSize: '13px', color: notifMsg.includes('Erreur') || notifMsg.includes('refusée') ? 'var(--danger)' : 'var(--success)' }}>
+            {notifMsg}
+          </p>
+        )}
       </div>
 
       {/* Sync téléphone */}

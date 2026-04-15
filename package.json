@@ -9,13 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@upstash/redis": "^1.37.0",
     "pako": "^2.1.0",
     "png-to-ico": "^3.0.1",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.1",
