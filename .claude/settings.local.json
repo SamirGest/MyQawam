@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm create:*)",
+      "Bash(npx:*)",
+      "Bash(cp -r /c/Users/Samir/MyQawam/temp-init/* /c/Users/Samir/MyQawam/)",
+      "Bash(cp /c/Users/Samir/MyQawam/temp-init/.gitignore /c/Users/Samir/MyQawam/)",
+      "Bash(rm -rf /c/Users/Samir/MyQawam/temp-init)",
+      "Bash(npm install:*)",
+      "Bash(node -e ':*)",
+      "Bash(node:*)",
+      "Bash(cscript:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

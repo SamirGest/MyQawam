@@ -1,0 +1,17 @@
+{
+  "name": "MyQawam",
+  "short_name": "MyQawam",
+  "description": "Tableau de bord de vie personnel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f14",
+  "theme_color": "#7c5cfc",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
