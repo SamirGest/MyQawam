@@ -76,6 +76,9 @@ export default function Planning() {
 
   const openEdit = (bloc) => {
     const dayDate = new Date(bloc.date);
+    const h = parseInt(bloc.heureDebut.split(':')[0]);
+    // If bloc is 0h-4h, it belongs to the previous day's column
+    if (h >= 0 && h < 5) dayDate.setDate(dayDate.getDate() - 1);
     const dayIdx = (dayDate.getDay() + 6) % 7;
     setEditBloc(bloc);
     setForm({
@@ -100,12 +103,20 @@ export default function Planning() {
     }
   };
 
+  // For hours 0h-4h, the actual date is the next day
+  const getActualDate = (dayIdx, heure) => {
+    const h = parseInt(heure.split(':')[0]);
+    const d = new Date(getDayDate(dayIdx));
+    if (h >= 0 && h < 5) d.setDate(d.getDate() + 1);
+    return toISODate(d);
+  };
+
   const handleSave = () => {
     if (!form.titre.trim()) return;
     const data = getPlanning();
 
     if (editBloc) {
-      const date = toISODate(getDayDate(form.jours[0]));
+      const date = getActualDate(form.jours[0], form.heureDebut);
       data.blocs = data.blocs.map((b) =>
         b.id === editBloc.id
           ? { ...b, titre: form.titre, date, heureDebut: form.heureDebut, heureFin: form.heureFin, categorie: form.categorie }
@@ -116,7 +127,7 @@ export default function Planning() {
         data.blocs.push({
           id: uuidv4(),
           titre: form.titre,
-          date: toISODate(getDayDate(dayIdx)),
+          date: getActualDate(dayIdx, form.heureDebut),
           heureDebut: form.heureDebut,
           heureFin: form.heureFin,
           categorie: form.categorie,
@@ -150,7 +161,17 @@ export default function Planning() {
 
   const getBlocksForDay = (dayIdx) => {
     const date = toISODate(getDayDate(dayIdx));
-    return blocs.filter((b) => b.date === date);
+    const nextDay = new Date(getDayDate(dayIdx));
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDate = toISODate(nextDay);
+    return blocs.filter((b) => {
+      const h = parseInt(b.heureDebut.split(':')[0]);
+      // Blocs 5h-23h: stored with this day's date
+      if (h >= 5 && b.date === date) return true;
+      // Blocs 0h-4h: stored with next day's date but shown in this day's column
+      if (h >= 0 && h < 5 && b.date === nextDate) return true;
+      return false;
+    });
   };
 
   const isDayPast = (dayIdx) => {
