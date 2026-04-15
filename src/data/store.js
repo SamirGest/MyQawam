@@ -64,6 +64,15 @@ export function getPlanning() {
 
 export function savePlanning(data) {
   localStorage.setItem(PLANNING_KEY, JSON.stringify(data));
+  syncPlanningToServer(data);
+}
+
+function syncPlanningToServer(data) {
+  fetch('/api/planning', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ blocs: data.blocs }),
+  }).catch(() => {});
 }
 
 export function addBloc(bloc) {

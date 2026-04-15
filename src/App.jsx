@@ -8,45 +8,21 @@ import Planning from './pages/Planning';
 import Parametres from './pages/Parametres';
 import Sync from './pages/Sync';
 import { autoResetHabitudes, getPlanning } from './data/store';
-import { toISODate } from './data/helpers';
 
-function schedulePlanningNotifications() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  if (!('serviceWorker' in navigator)) return;
-
-  const today = toISODate(new Date());
-  const blocs = getPlanning().blocs.filter((b) => b.date === today);
-  const now = new Date();
-
-  blocs.forEach((bloc) => {
-    const [h, m] = bloc.heureDebut.split(':').map(Number);
-    const eventTime = new Date();
-    eventTime.setHours(h, m, 0, 0);
-
-    // 30 minutes before
-    const notifTime = new Date(eventTime.getTime() - 30 * 60 * 1000);
-    const delay = notifTime.getTime() - now.getTime();
-
-    if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
-      setTimeout(() => {
-        navigator.serviceWorker.ready.then((reg) => {
-          reg.showNotification('MyQawam — Rappel planning', {
-            body: `Dans 30 min → ${bloc.titre} (${bloc.heureDebut} - ${bloc.heureFin})`,
-            icon: '/logo.png',
-            badge: '/logo.png',
-            vibrate: [200, 100, 200],
-            data: { url: '/planning' },
-          });
-        });
-      }, delay);
-    }
-  });
+// Sync planning to server on app load
+function syncPlanning() {
+  const data = getPlanning();
+  fetch('/api/planning', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ blocs: data.blocs }),
+  }).catch(() => {});
 }
 
 export default function App() {
   useEffect(() => {
     autoResetHabitudes();
-    schedulePlanningNotifications();
+    syncPlanning();
   }, []);
 
   return (
